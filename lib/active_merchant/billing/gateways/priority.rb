@@ -53,6 +53,7 @@ module ActiveMerchant #:nodoc:
         params['amount'] = localized_amount(amount.to_f, options[:currency])
         params['authOnly'] = false
 
+        add_replay_id(params, options)
         add_credit_card(params, credit_card, 'purchase', options)
         add_type_merchant_purchase(params, @options[:merchant_id], true, options)
         commit('purchase', params: params, jwt: options)
@@ -63,6 +64,7 @@ module ActiveMerchant #:nodoc:
         params['amount'] = localized_amount(amount.to_f, options[:currency])
         params['authOnly'] = true
 
+        add_replay_id(params, options)
         add_credit_card(params, credit_card, 'purchase', options)
         add_type_merchant_purchase(params, @options[:merchant_id], false, options)
         commit('purchase', params: params, jwt: options)
@@ -74,6 +76,8 @@ module ActiveMerchant #:nodoc:
         params['paymentToken'] = get_hash(authorization)['payment_token'] || options[:payment_token]
         # refund amounts must be negative
         params['amount'] = ('-' + localized_amount(amount.to_f, options[:currency])).to_f
+
+        add_replay_id(params, options)
         commit('refund', params: params, jwt: options)
       end
 
@@ -88,11 +92,15 @@ module ActiveMerchant #:nodoc:
         params['source'] = options[:source]
         params['tenderType'] = 'Card'
 
+        add_replay_id(params, options)
         commit('capture', params: params, jwt: options)
       end
 
       def void(authorization, options = {})
-        commit('void', iid: get_hash(authorization)['id'], jwt: options)
+        params = {}
+
+        add_replay_id()
+        commit('void', params: params, iid: get_hash(authorization)['id'], jwt: options)
       end
 
       def verify(credit_card, options)
