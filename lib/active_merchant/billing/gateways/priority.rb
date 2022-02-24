@@ -123,6 +123,10 @@ module ActiveMerchant #:nodoc:
           gsub(%r((cvv\\?"\s*:\s*\\?")[^"]*)i, '\1[FILTERED]')
       end
 
+      def add_replay_id(post, options)
+        post[:replayId] = options[:replay_id] if options[:replay_id]
+      end
+
       def add_credit_card(params, credit_card, action, options)
         return unless credit_card&.is_a?(CreditCard)
 
