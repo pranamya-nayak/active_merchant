@@ -297,4 +297,17 @@ class RemotePriorityTest < Test::Unit::TestCase
     payment_status = @gateway.get_payment_status(response.params['batchId'], @option_spr)
     assert payment_status.params['status'] == 'Pending'
   end
+
+  def test_successful_purchase_with_replay_id
+    replay_id = 12345
+    response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr.merge(replay_id: replay_id))
+
+    assert_success response
+    assert_equal replay_id, response.params['replayId']
+
+    duplicate_txn_response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr.merge(replay_id: response.params['replayId']))
+
+    assert_success duplicate_txn_response
+    assert_equal response.params['id'], duplicate_txn_response.params['id']
+  end
 end
