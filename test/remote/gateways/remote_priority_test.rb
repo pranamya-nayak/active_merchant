@@ -338,7 +338,7 @@ class RemotePriorityTest < Test::Unit::TestCase
   #   assert_equal capture.params['id'], duplicate_capture.params['id']
   # end
 
-  def test_void_with_duplicate_replay_id_should_fail
+  def test_duplicate_void_with_replay_id_should_fail
     response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr)
     assert_success response
 
