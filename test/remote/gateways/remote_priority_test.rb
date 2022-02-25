@@ -20,6 +20,7 @@ class RemotePriorityTest < Test::Unit::TestCase
     @credit_card = credit_card('4111111111111111', month: '01', year: '2029', first_name: 'Marcus', last_name: 'Rashford', verification_value: '999')
     @invalid_credit_card = credit_card('123456', month: '01', year: '2029', first_name: 'Marcus', last_name: 'Rashford', verification_value: '999')
     @faulty_credit_card = credit_card('12345', month: '01', year: '2029', first_name: 'Marcus', last_name: 'Rashford', verification_value: '999')
+    @replay_id = rand(100...1000)
 
     @option_spr = {
       billing_address: address(),
@@ -299,15 +300,39 @@ class RemotePriorityTest < Test::Unit::TestCase
   end
 
   def test_successful_purchase_with_replay_id
-    replay_id = 12345
-    response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr.merge(replay_id: replay_id))
+    response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr.merge(replay_id: @replay_id))
 
     assert_success response
-    assert_equal replay_id, response.params['replayId']
+    assert_equal @replay_id, response.params['replayId']
 
     duplicate_txn_response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr.merge(replay_id: response.params['replayId']))
 
     assert_success duplicate_txn_response
     assert_equal response.params['id'], duplicate_txn_response.params['id']
+  end
+
+  def test_successful_authorize_with_replay_id
+    response = @gateway.authorize(@amount_purchase, @credit_card, @option_spr.merge(replay_id: @replay_id))
+    
+    assert_success response
+    assert_equal @replay_id, response.params['replayId']
+
+    duplicate_txn_response = @gateway.authorize(@amount_purchase, @credit_card, @option_spr.merge(replay_id: response.params['replayId']))
+
+    assert_success duplicate_txn_response
+    assert_equal response.params['id'], duplicate_txn_response.params['id']
+  end
+
+  def test_void_with_duplicate_replay_id_should_fail
+    response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr)
+    assert_success response
+
+    void = @gateway.void({ 'id' => response.params['id'] }.to_s, @option_spr.merge(replay_id: @replay_id))
+    assert_success void
+
+    duplicate_void = @gateway.void({'id' => response.params['id'] }.to_s, @option_spr.merge(replay_id: void.params['replayId']))
+
+    assert_failure duplicate_void
+    assert_equal 'Payment already voided.', duplicate_void.message
   end
 end

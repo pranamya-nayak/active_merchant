@@ -53,7 +53,6 @@ module ActiveMerchant #:nodoc:
         params['amount'] = localized_amount(amount.to_f, options[:currency])
         params['authOnly'] = false
 
-        add_replay_id(params, options)
         add_credit_card(params, credit_card, 'purchase', options)
         add_type_merchant_purchase(params, @options[:merchant_id], true, options)
         commit('purchase', params: params, jwt: options)
@@ -64,7 +63,6 @@ module ActiveMerchant #:nodoc:
         params['amount'] = localized_amount(amount.to_f, options[:currency])
         params['authOnly'] = true
 
-        add_replay_id(params, options)
         add_credit_card(params, credit_card, 'purchase', options)
         add_type_merchant_purchase(params, @options[:merchant_id], false, options)
         commit('purchase', params: params, jwt: options)
@@ -77,7 +75,6 @@ module ActiveMerchant #:nodoc:
         # refund amounts must be negative
         params['amount'] = ('-' + localized_amount(amount.to_f, options[:currency])).to_f
 
-        add_replay_id(params, options)
         commit('refund', params: params, jwt: options)
       end
 
@@ -92,14 +89,12 @@ module ActiveMerchant #:nodoc:
         params['source'] = options[:source]
         params['tenderType'] = 'Card'
 
-        add_replay_id(params, options)
         commit('capture', params: params, jwt: options)
       end
 
       def void(authorization, options = {})
         params = {}
 
-        add_replay_id()
         commit('void', params: params, iid: get_hash(authorization)['id'], jwt: options)
       end
 
@@ -131,8 +126,8 @@ module ActiveMerchant #:nodoc:
           gsub(%r((cvv\\?"\s*:\s*\\?")[^"]*)i, '\1[FILTERED]')
       end
 
-      def add_replay_id(params, options)
-        params['replayId'] = options[:replay_id] if options[:replay_id]
+      def add_replay_id(params, jwt)
+        params['replayId'] = jwt[:replay_id] if jwt[:replay_id]
       end
 
       def add_credit_card(params, credit_card, action, options)
@@ -199,6 +194,7 @@ module ActiveMerchant #:nodoc:
           begin
             case action
             when 'void'
+              add_replay_id(params, jwt)
               parse(ssl_request(:delete, url(action, params, ref_number: iid), nil, request_headers))
             when 'verify'
               parse(ssl_get(url(action, params, credit_card_number: card_number), request_verify_headers(jwt)))
@@ -207,11 +203,13 @@ module ActiveMerchant #:nodoc:
             when 'close_batch'
               parse(ssl_request(:put, url(action, params, ref_number: iid), nil, request_headers))
             else
+              add_replay_id(params, jwt)
               parse(ssl_post(url(action, params), post_data(params), request_headers))
             end
           rescue ResponseError => e
             parse(e.response.body)
           end
+
         success = success_from(response, action)
         response = { 'code' => '204' } if response == ''
         Response.new(
