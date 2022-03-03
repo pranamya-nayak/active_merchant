@@ -311,6 +311,8 @@ class RemotePriorityTest < Test::Unit::TestCase
     assert_equal response.params['id'], duplicate_txn_response.params['id']
   end
 
+  # Failed test should assert that the txn IDs are not the same
+
   def test_duplicate_successful_authorize_with_replay_id
     response = @gateway.authorize(@amount_purchase, @credit_card, @option_spr.merge(replay_id: @replay_id))
     
