@@ -323,22 +323,22 @@ class RemotePriorityTest < Test::Unit::TestCase
     assert_not_equal first_txn.params['id'], second_txn.params['id']
   end
 
-  # def test_successful_authorize_and_capture_with_replay_id
-  #   auth_obj = @gateway.authorize(@amount_authorize, @credit_card, @option_spr)
-  #   assert_success auth_obj
+#   def test_successful_authorize_and_capture_with_replay_id
+#     auth_obj = @gateway.authorize(@amount_authorize, @credit_card, @option_spr)
+#     assert_success auth_obj
 
-  #   capture = @gateway.capture(@amount_authorize, auth_obj.authorization.to_s, @option_spr.merge(auth_code: auth_obj.params['authCode'], replay_id: @replay_id))
-  #   assert_success capture
+#     capture = @gateway.capture(@amount_authorize, auth_obj.authorization.to_s, @option_spr.merge(auth_code: auth_obj.params['authCode'], replay_id: @replay_id))
+#     assert_success capture
 
-  #   duplicate_capture = @gateway.capture(@amount_authorize, auth_obj.authorization.to_s, @option_spr.merge(auth_code: auth_obj.params['authCode'], replay_id: capture.params['replayId']))
+#     duplicate_capture = @gateway.capture(@amount_authorize, auth_obj.authorization.to_s, @option_spr.merge(auth_code: auth_obj.params['authCode'], replay_id: capture.params['replayId'] + 1))
 
-  #   # This is failing with "Replay payment account number does not match original." Not sure what this means yet.
+#     # This is failing with "Replay payment account number does not match original." Not sure what this means yet.
+# require 'pry'; binding.pry
+#     assert_success duplicate_capture
+#     assert_equal capture.params['id'], duplicate_capture.params['id']
+#   end
 
-  #   assert_success duplicate_capture
-  #   assert_equal capture.params['id'], duplicate_capture.params['id']
-  # end
-
-  def test_duplicate_void_with_replay_id_should_fail
+  def test_failed_duplicate_void_with_replay_id
     response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr)
     assert_success response
 
@@ -351,21 +351,21 @@ class RemotePriorityTest < Test::Unit::TestCase
     assert_equal 'Payment already voided.', duplicate_void.message
   end
 
-  # Duplicate refund returns the same "Replay payment account number does not match original." error
+  def test_failed_duplicate_refund_with_replay_id
+    response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr)
+    assert_success response
 
-  # def test_successful_refund_with_replay_id
-  #   response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr)
-  #   assert_success response
+    refund_params = @option_spr.merge(response.params).deep_transform_keys { |key| key.to_s.underscore }.transform_keys(&:to_sym)
 
-  #   refund_params = @option_spr.merge(response.params).deep_transform_keys { |key| key.to_s.underscore }.transform_keys(&:to_sym)
+    refund = @gateway.refund(response.params['amount'].to_f * 100, response.authorization.to_s, refund_params.merge(replay_id: @replay_id))
 
-  #   refund = @gateway.refund(response.params['amount'].to_f * 100, response.authorization.to_s, refund_params.merge(replay_id: @replay_id))
-  #   assert_success refund
-  #   assert refund.params['status'] == 'Approved'
-  #   assert_equal 'Approved or completed successfully', refund.message
+    assert_success refund
+    assert refund.params['status'] == 'Approved'
+    assert_equal 'Approved or completed successfully', refund.message
 
-  #   duplicate_refund = @gateway.refund(response.params['amount'].to_f * 100, response.authorization.to_s, refund_params.merge(replay_id: @replay_id))
+    duplicate_refund = @gateway.refund(response.params['amount'].to_f * 100, response.authorization.to_s, refund_params.merge(replay_id: refund.params['replayId']))
 
-  #   require 'pry'; binding.pry
-  # end
+    assert_failure duplicate_refund
+    assert_equal 'Replay payment account number does not match original.', duplicate_refund.message
+  end
 end
