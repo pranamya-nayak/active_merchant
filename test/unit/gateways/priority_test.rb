@@ -274,25 +274,6 @@ class PriorityTest < Test::Unit::TestCase
     assert_equal response.params['id'], duplicate_response.params['id']
   end
 
-  def test_failed_duplicate_void
-    purchase_response = stub_comms do
-      @gateway.purchase(@amount_purchase, @credit_card, @option_spr)
-    end.respond_with(successful_purchase_response)
-    assert_success purchase_response 
-    
-    void = stub_comms do
-      @gateway.void({ 'id' => purchase_response.params['id'] }.to_s, @option_spr)
-    end.respond_with(successful_void_response)
-    assert_success void
-
-    duplicate_void = stub_comms do 
-      @gateway.void({ 'id' => purchase_response.params['id'] }.to_s, @option_spr)
-    end.respond_with(duplicate_void_response)
-    assert_failure duplicate_void
-
-    assert_equal 'Payment already voided.', duplicate_void.details.first    
-  end
-
   def test_scrub
     assert @gateway.supports_scrubbing?
     assert_equal @gateway.scrub(pre_scrubbed), post_scrubbed
