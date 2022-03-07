@@ -315,7 +315,22 @@ class RemotePriorityTest < Test::Unit::TestCase
     assert_equal response.params['id'], duplicate_response.params['id']
   end
 
-  def test_failed_purchase_with_unique_replay_id
+  def test_failed_purchase_with_duplicate_replay_id
+    response = @gateway.purchase(@amount_purchase, @credit_card_purchase_fail_invalid_number, @option_spr.merge(replay_id: @replay_id))
+
+    assert_failure response
+
+    duplicate_response = @gateway.purchase(@amount_purchase, @credit_card_purchase_fail_invalid_number, @option_spr.merge(replay_id: response.params['replayId']))
+
+    assert_failure duplicate_response
+
+    assert_equal response.message, duplicate_response.message
+    assert_equal response.params['status'], duplicate_response.params['status']
+
+    assert_equal response.params['id'], duplicate_response.params['id']
+  end
+
+  def test_successful_purchase_with_unique_replay_id
     first_purchase_response = @gateway.purchase(@amount_purchase, @credit_card, @option_spr.merge(replay_id: @replay_id))
 
     assert_success first_purchase_response
@@ -334,7 +349,7 @@ class RemotePriorityTest < Test::Unit::TestCase
     void = @gateway.void({ 'id' => response.params['id'] }.to_s, @option_spr)
     assert_success void
 
-    duplicate_void = @gateway.void({'id' => response.params['id'] }.to_s, @option_spr)
+    duplicate_void = @gateway.void({ 'id' => response.params['id'] }.to_s, @option_spr)
 
     assert_failure duplicate_void
     assert_equal 'Payment already voided.', duplicate_void.message

@@ -274,6 +274,20 @@ class PriorityTest < Test::Unit::TestCase
     assert_equal response.params['id'], duplicate_response.params['id']
   end
 
+  def test_failed_purchase_with_duplicate_replay_id
+    response = stub_comms do
+      @gateway.purchase(@amount_purchase, @invalid_credit_card, @option_spr.merge(replay_id: @replay_id))
+    end.respond_with(failed_purchase_response_with_replay_id)
+    assert_failure response
+
+    duplicate_response = stub_comms do
+      @gateway.purchase(@amount_purchase, @invalid_credit_card, @option_spr.merge(replay_id: response.params['replayId']))
+    end.respond_with(failed_purchase_response_with_replay_id)
+    assert_failure duplicate_response
+
+    assert_equal response.params['id'], duplicate_response.params['id']
+  end
+
   def test_scrub
     assert @gateway.supports_scrubbing?
     assert_equal @gateway.scrub(pre_scrubbed), post_scrubbed
@@ -364,17 +378,6 @@ class PriorityTest < Test::Unit::TestCase
         ],
         "responseCode": "eENKmhrToV9UYxsXAh7iGAQ"
       }'
-  end
-
-  def duplicate_void_response
-    {
-      "errorCode": "ContactCustomerSupport",
-      "message": "An error has occurred. Please contact customer support.",
-      "details": [
-        "Payment already voided."
-      ],
-      "responseCode": "e42sJPihQVvtrYOSlb3XjeA"
-    }
   end
 
   def transcript
@@ -671,6 +674,93 @@ class PriorityTest < Test::Unit::TestCase
       "shouldGetCreditCardLevel": false
   }
 )
+  end
+
+  def failed_purchase_response_with_replay_id
+    %(
+      {
+        "created": "2022-03-07T17:41:29.1Z",
+        "paymentToken": "PKWMpiNtZ1mlUk4E4d95UWirHfQDNLwv",
+        "id": 86560811,
+        "creatorName": "API Key",
+        "replayId": #{@replay_id},
+        "isDuplicate": false,
+        "shouldVaultCard": false,
+        "merchantId": 1000003310,
+        "batch": "0050",
+        "batchId": 10000000271205,
+        "tenderType": "Card",
+        "currency": "USD",
+        "amount": "0.02",
+        "cardAccount": {
+          "entryMode": "Keyed",
+          "cardId": "B6R6ItScfvnUDwHWjP6ea1OUVX0f",
+          "token": "PKWMpiNtZ1mlUk4E4d95UWirHfQDNLwv",
+          "expiryMonth": "01",
+          "expiryYear": "29",
+          "hasContract": false,
+          "cardPresent": false
+        },
+        "posData": {
+          "panCaptureMethod": "Manual"
+        },
+        "authOnly": false,
+        "status": "Declined",
+        "risk": {
+          "avsResponse": "No Response from AVS",
+          "avsAddressMatch": false,
+          "avsZipMatch": false
+        },
+        "requireSignature": false,
+        "settledAmount": "0",
+        "settledCurrency": "USD",
+        "cardPresent": false,
+        "authMessage": "Invalid card number",
+        "availableAuthAmount": "0",
+        "reference": "206617005381",
+        "shipAmount": "0.01",
+        "shipToZip": "55667",
+        "shipToCountry": "USA",
+        "purchases": [
+          {
+            "dateCreated": "0001-01-01T00:00:00",
+            "iId": 0,
+            "transactionIId": 0,
+            "transactionId": "0",
+            "name": "Anita",
+            "description": "Dump",
+            "unitPrice": "0",
+            "quantity": 1,
+            "taxRate": "0",
+            "taxAmount": "0",
+            "discountRate": "0",
+            "discountAmount": "0",
+            "extendedAmount": "0",
+            "lineItemId": 0
+          },
+          {
+            "dateCreated": "0001-01-01T00:00:00",
+            "iId": 0,
+            "transactionIId": 0,
+            "transactionId": "0",
+            "name": "Old Peculier",
+            "description": "Beer",
+            "unitPrice": "0",
+            "quantity": 1,
+            "taxRate": "0",
+            "taxAmount": "0",
+            "discountRate": "0",
+            "discountAmount": "0",
+            "extendedAmount": "0",
+            "lineItemId": 0
+          }
+        ],
+        "type": "Sale",
+        "taxExempt": false,
+        "source": "API",
+        "shouldGetCreditCardLevel": false
+      }
+    )
   end
 
   def successful_authorize_response
